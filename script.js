@@ -1,8 +1,6 @@
-const photos = [];
-
-for (let i = 2; i <= 14; i++) {
-    photos.push(`photo${i}.JPG`);
-}
+const username = "ialjomaili-ui";
+const repository = "iraq26";
+const branch = "main";
 
 const gallery = document.getElementById("gallery");
 const count = document.getElementById("count");
@@ -11,51 +9,137 @@ const lightbox = document.getElementById("lightbox");
 const bigImage = document.getElementById("big");
 const caption = document.getElementById("caption");
 
+const closeButton = document.getElementById("close");
+const prevButton = document.getElementById("prev");
+const nextButton = document.getElementById("next");
+
+let photos = [];
 let current = 0;
 
 
-// Create photo gallery
-photos.forEach((filename, index) => {
+// Get every file in the repository
+async function getRepositoryFiles() {
 
-    const card = document.createElement("div");
-    card.className = "photo";
+    const response = await fetch(
+        `https://api.github.com/repos/${username}/${repository}/git/trees/${branch}?recursive=1`
+    );
 
-    const image = document.createElement("img");
+    if (!response.ok) {
+        throw new Error("Could not load repository files.");
+    }
 
-    image.src = filename;
-    image.alt = `Family memory ${index + 1}`;
-    image.loading = "lazy";
+    const data = await response.json();
 
-    card.appendChild(image);
-    gallery.appendChild(card);
-
-    card.addEventListener("click", () => {
-
-        current = index;
-
-        bigImage.src = filename;
-        caption.textContent =
-            `Memory ${index + 1} of ${photos.length}`;
-
-        lightbox.classList.add("open");
-
-    });
-
-});
+    return data.tree || [];
+}
 
 
-// Show number of photos
-count.textContent = `${photos.length} memories`;
+// Find all images automatically
+async function loadPhotos() {
+
+    try {
+
+        const files = await getRepositoryFiles();
+
+        photos = files
+            .filter(file => {
+
+                if (file.type !== "blob") return false;
+
+                const name = file.path.toLowerCase();
+
+                return (
+                    name.endsWith(".jpg") ||
+                    name.endsWith(".jpeg") ||
+                    name.endsWith(".png") ||
+                    name.endsWith(".webp")
+                );
+
+            })
+            .map(file => ({
+                name: file.path,
+                url:
+                    `https://raw.githubusercontent.com/${username}/${repository}/${branch}/${encodeURIComponent(file.path)}`
+            }));
 
 
-// Close lightbox
-document.getElementById("close").addEventListener("click", () => {
-    lightbox.classList.remove("open");
-});
+        // Remove anything inside a folder if you only want
+        // images in the main repository
+        photos = photos.filter(photo => !photo.name.includes("/"));
+
+
+        count.textContent =
+            `${photos.length} memories`;
+
+
+        gallery.innerHTML = "";
+
+
+        photos.forEach((photo, index) => {
+
+            const card = document.createElement("div");
+
+            card.className = "photo";
+
+
+            const image = document.createElement("img");
+
+            image.src = photo.url;
+
+            image.alt = `Family memory ${index + 1}`;
+
+            image.loading = "lazy";
+
+
+            card.appendChild(image);
+
+            gallery.appendChild(card);
+
+
+            card.addEventListener("click", () => {
+
+                current = index;
+
+                updateLightbox();
+
+                lightbox.classList.add("open");
+
+            });
+
+        });
+
+
+    } catch (error) {
+
+        console.error(error);
+
+        count.textContent = "Unable to load memories.";
+
+    }
+
+}
+
+
+// Update fullscreen photo
+function updateLightbox() {
+
+    if (photos.length === 0) return;
+
+
+    bigImage.src = photos[current].url;
+
+
+    caption.textContent =
+        `Memory ${current + 1} of ${photos.length}`;
+
+}
 
 
 // Previous photo
-document.getElementById("prev").addEventListener("click", () => {
+function previousPhoto() {
+
+    if (photos.length === 0) return;
+
 
     current--;
 
@@ -63,16 +147,17 @@ document.getElementById("prev").addEventListener("click", () => {
         current = photos.length - 1;
     }
 
-    bigImage.src = photos[current];
 
-    caption.textContent =
-        `Memory ${current + 1} of ${photos.length}`;
+    updateLightbox();
 
-});
+}
 
 
 // Next photo
-document.getElementById("next").addEventListener("click", () => {
+function nextPhoto() {
+
+    if (photos.length === 0) return;
+
 
     current++;
 
@@ -80,19 +165,62 @@ document.getElementById("next").addEventListener("click", () => {
         current = 0;
     }
 
-    bigImage.src = photos[current];
 
-    caption.textContent =
-        `Memory ${current + 1} of ${photos.length}`;
+    updateLightbox();
 
-});
+}
 
 
-// Close by clicking outside image
-lightbox.addEventListener("click", (event) => {
+// Close lightbox
+function closeLightbox() {
+
+    lightbox.classList.remove("open");
+
+    bigImage.src = "";
+
+}
+
+
+// Buttons
+closeButton.addEventListener("click", closeLightbox);
+
+prevButton.addEventListener("click", previousPhoto);
+
+nextButton.addEventListener("click", nextPhoto);
+
+
+// Clicking outside the image
+lightbox.addEventListener("click", event => {
 
     if (event.target === lightbox) {
-        lightbox.classList.remove("open");
+        closeLightbox();
     }
 
 });
+
+
+// Keyboard controls
+document.addEventListener("keydown", event => {
+
+    if (!lightbox.classList.contains("open")) return;
+
+
+    if (event.key === "Escape") {
+        closeLightbox();
+    }
+
+
+    if (event.key === "ArrowLeft") {
+        previousPhoto();
+    }
+
+
+    if (event.key === "ArrowRight") {
+        nextPhoto();
+    }
+
+});
+
+
+// Start
+loadPhotos();
