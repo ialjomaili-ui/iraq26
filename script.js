@@ -1,88 +1,135 @@
 const photos = [];
 
 for (let i = 1; i <= 500; i++) {
-    photos.push({
-        file: `photo${i}.jpg`,
-        caption: ""
-    });
+    photos.push(`photo${i}.jpg`);
 }
 
 const gallery = document.getElementById("gallery");
-const count = document.getElementById("photoCount");
+const count = document.getElementById("count");
+
 const lightbox = document.getElementById("lightbox");
-const lightboxImage = document.getElementById("lightboxImg");
-const lightboxCaption = document.getElementById("caption");
+const bigImage = document.getElementById("big");
+const caption = document.getElementById("caption");
+
+const closeButton = document.getElementById("close");
+const prevButton = document.getElementById("prev");
+const nextButton = document.getElementById("next");
 
 let availablePhotos = [];
 let current = 0;
 
-photos.forEach((photo) => {
-    const img = new Image();
 
-    img.onload = () => {
-        availablePhotos.push(photo);
+// Check which photos actually exist
+photos.forEach((filename) => {
 
-        const card = document.createElement("article");
-        card.className = "media";
+    const testImage = new Image();
 
-        const display = document.createElement("img");
-        display.src = photo.file;
-        display.alt = "Family memory";
-        display.loading = "lazy";
+    testImage.onload = function () {
 
-        card.appendChild(display);
+        availablePhotos.push(filename);
+
+        const card = document.createElement("div");
+        card.className = "photo";
+
+        const image = document.createElement("img");
+        image.src = filename;
+        image.alt = "Family memory";
+        image.loading = "lazy";
+
+        card.appendChild(image);
         gallery.appendChild(card);
 
-        card.addEventListener("click", () => {
-            current = availablePhotos.indexOf(photo);
+        card.addEventListener("click", function () {
+
+            current = availablePhotos.indexOf(filename);
+
             updateLightbox();
+
             lightbox.classList.add("open");
-            lightbox.setAttribute("aria-hidden", "false");
+
         });
 
-        count.textContent = `${availablePhotos.length} memories`;
+        count.textContent =
+            `${availablePhotos.length} memories`;
     };
 
-    img.src = photo.file;
+    testImage.src = filename;
 });
 
-function updateLightbox() {
-    const photo = availablePhotos[current];
 
-    lightboxImage.src = photo.file;
-    lightboxImage.alt = "Family memory";
-    lightboxCaption.textContent = photo.caption;
+// Open/update fullscreen photo
+function updateLightbox() {
+
+    if (availablePhotos.length === 0) return;
+
+    const filename = availablePhotos[current];
+
+    bigImage.src = filename;
+
+    caption.textContent =
+        `Memory ${current + 1} of ${availablePhotos.length}`;
 }
 
-function move(direction) {
+
+// Previous / next
+function movePhoto(direction) {
+
     if (availablePhotos.length === 0) return;
 
     current =
-        (current + direction + availablePhotos.length) %
-        availablePhotos.length;
+        (current + direction + availablePhotos.length)
+        % availablePhotos.length;
 
     updateLightbox();
 }
 
+
+// Close
 function closeLightbox() {
+
     lightbox.classList.remove("open");
-    lightbox.setAttribute("aria-hidden", "true");
+
+    bigImage.src = "";
 }
 
-document.getElementById("close").onclick = closeLightbox;
-document.getElementById("prev").onclick = () => move(-1);
-document.getElementById("next").onclick = () => move(1);
 
-lightbox.addEventListener("click", (event) => {
+// Buttons
+closeButton.addEventListener("click", closeLightbox);
+
+prevButton.addEventListener("click", function () {
+    movePhoto(-1);
+});
+
+nextButton.addEventListener("click", function () {
+    movePhoto(1);
+});
+
+
+// Clicking outside the image closes it
+lightbox.addEventListener("click", function (event) {
+
     if (event.target === lightbox) {
         closeLightbox();
     }
+
 });
 
-document.addEventListener("keydown", (event) => {
+
+// Keyboard controls
+document.addEventListener("keydown", function (event) {
+
     if (!lightbox.classList.contains("open")) return;
 
-    if (event.key === "Escape") closeLightbox();
-    if (event.key === "ArrowLeft") move(-1);
-    if (event.key === "ArrowRight") move(1);
+    if (event.key === "Escape") {
+        closeLightbox();
+    }
+
+    if (event.key === "ArrowLeft") {
+        movePhoto(-1);
+    }
+
+    if (event.key === "ArrowRight") {
+        movePhoto(1);
+    }
+
 });
